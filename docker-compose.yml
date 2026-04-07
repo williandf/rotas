@@ -2,9 +2,11 @@ services:
   rotas-app:
     build: .
     container_name: rotas-app
+    restart: unless-stopped
     ports:
-      -  "3000:3000"
+      - "3000:3000"
     env_file:
-      -  .env
+      - .env
     environment:
       NODE_ENV: production
+      PORT: 3000

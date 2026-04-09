@@ -1,4 +1,4 @@
-import type { CobliApiResponse, CobliRouteRaw, RouteItem, NormalizedRoute } from "../types/route"
+import type { CobliApiResponse, NormalizedRoute } from "../types/route"
 
 function formatTime(value?: number | null) {
   if (!value) return "--:--"
@@ -10,49 +10,91 @@ function formatTime(value?: number | null) {
   }).format(new Date(value))
 }
 
-export function normalizeCobliRoutes(apiResponse: any): NormalizedRoute[] {
-  return (apiResponse.content ?? []).map((route: any) => {
+const activityTypeMap: Record<string, string> = {
+  START: "Início",
+  STOP: "Parada",
+  END: "Fim",
+}
+
+const statusMap: Record<string, string> = {
+  COMPLETED: "Concluído",
+  PENDING: "Pendente",
+  ON_SITE: "No local",
+  EXECUTED: "Executada",
+  IN_PROGRESS: "Em andamento",
+  CANCELED: "Cancelada",
+  CANCELLED: "Cancelada",
+  PLANNED: "Planejada",
+}
+
+const visitStatusMap: Record<string, string> = {
+  VISITED: "Visitado",
+  PENDING: "Pendente",
+  ON_SITE: "No local",
+  NOT_VISITED: "Não visitado",
+  SKIPPED: "Ignorado",
+}
+
+const completionStatusMap: Record<string, string> = {
+  COMPLETED: "Concluído",
+  PENDING: "Pendente",
+  CANCELED: "Cancelado",
+  CANCELLED: "Cancelado",
+  FAILED: "Falhou",
+}
+
+function translate(
+  value?: string | null,
+  map?: Record<string, string>,
+  fallback = ""
+): string {
+  if (!value) return fallback
+  if (!map) return value
+  return map[value] ?? value
+}
+
+export function normalizeCobliRoutes(
+  apiResponse: CobliApiResponse
+): NormalizedRoute[] {
+  return (apiResponse.content ?? []).map((route) => {
     const activities = route.activities ?? []
 
-    const firstActivity = activities.find((a: any) => a.type === "START")
-    const lastActivity = [...activities].reverse().find((a: any) => a.type === "END")
+    const firstActivity = activities.find((a) => a.type === "START")
+    const lastActivity = [...activities].reverse().find((a) => a.type === "END")
+
     const firstDriver =
-      activities.find((a: any) => a.driver_name && a.driver_name.trim())?.driver_name ?? ""
+      activities.find((a) => a.driver_name && a.driver_name.trim())?.driver_name ??
+      route.driver_name ??
+      ""
 
     return {
-      id: route.id,
+      id: route.id ?? "",
       name: route.name ?? "Rota sem nome",
-      status: route.status ?? "Sem status",
-      startTimeLabel: formatTime(firstActivity?.start_time),
-      endTimeLabel: formatTime(lastActivity?.end_time),
+      status: translate(route.status, statusMap, "Sem status"),
+      startTimeLabel: formatTime(firstActivity?.start_time ?? route.start_time),
+      endTimeLabel: formatTime(lastActivity?.end_time ?? route.end_time),
       driverName: firstDriver,
-      activities: activities.map((activity: any) => ({
-        id: activity.id,
-        type: activity.type,
-        status: activity.status,
-        visit_status: activity.visit_status,
-        completion_status: activity.completion_status,
-        position: activity.position,
-        name: activity.name,
-        phone_number: activity.phone_number,
-        additional_info: activity.additional_info,
-        time_windows: activity.time_windows,
-        start_time: activity.start_time,
-        end_time: activity.end_time,
-        arrival_time: activity.arrival_time,
-        executed_end_time: activity.executed_end_time,
-        driver_name: activity.driver_name,
-        destination: activity.destination
-          ? {
-              city: activity.destination.city,
-              state: activity.destination.state,
-              neighborhood: activity.destination.neighborhood,
-              street_address: activity.destination.street_address,
-              street_number: activity.destination.street_number,
-              postal_code: activity.destination.postal_code,
-              country: activity.destination.country,
-            }
-          : null,
+      activities: activities.map((activity) => ({
+        id: activity.id ?? "",
+        type: translate(activity.type, activityTypeMap, "Não informado"),
+        status: translate(activity.status, statusMap, "Sem status"),
+        visit_status: translate(activity.visit_status, visitStatusMap, ""),
+        completion_status: translate(
+          activity.completion_status,
+          completionStatusMap,
+          ""
+        ),
+        position: activity.position ?? 0,
+        name: activity.name ?? null,
+        phone_number: activity.phone_number ?? null,
+        additional_info: activity.additional_info ?? null,
+        time_windows: activity.time_windows ?? null,
+        start_time: activity.start_time ?? null,
+        end_time: activity.end_time ?? null,
+        arrival_time: activity.arrival_time ?? null,
+        executed_end_time: activity.executed_end_time ?? null,
+        driver_name: activity.driver_name ?? null,
+        destination: activity.destination ?? null,
       })),
       points: route.points ?? [],
     }

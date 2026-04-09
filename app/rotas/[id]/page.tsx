@@ -2,7 +2,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { notFound } from "next/navigation"
 import { headers } from "next/headers"
-import { normalizeCobliRoutes } from "../../lib/cobli"
+import { normalizeCobliRoutes } from "@/app/lib/cobli"
+import { CobliActivity } from "@/app/types/route"
 
 type RouteActivity = {
   id: string
@@ -133,6 +134,58 @@ async function getRouteById(id: string, date?: string): Promise<RouteItem | null
   return routes.find((route) => route.id === id) ?? null
 }
 
+function buildAddress(activity: CobliActivity) {
+  if (!activity.destination) return "-"
+
+  return [
+    activity.destination.street_address,
+    activity.destination.street_number,
+    activity.destination.neighborhood,
+    activity.destination.city,
+    activity.destination.state,
+    activity.destination.postal_code,
+  ]
+    .filter(Boolean)
+    .join(", ")
+}
+function getStatusBadgeClass(status: string) {
+  switch (status) {
+    case "Concluído":
+    case "Executada":
+    case "Visitado":
+      return "bg-green-100 text-green-700 border border-green-200"
+
+    case "Pendente":
+    case "Planejada":
+      return "bg-yellow-100 text-yellow-800 border border-yellow-200"
+
+    case "No local":
+    case "Em andamento":
+      return "bg-blue-100 text-blue-700 border border-blue-200"
+
+    case "Cancelada":
+    case "Cancelado":
+    case "Falhou":
+      return "bg-red-100 text-red-700 border border-red-200"
+
+    default:
+      return "bg-neutral-100 text-neutral-700 border border-neutral-200"
+  }
+}
+
+function getTypeIcon(type: string) {
+  switch (type) {
+    case "Início":
+      return "🚚"
+    case "Parada":
+      return "📍"
+    case "Fim":
+      return "🏁"
+    default:
+      return "•"
+  }
+}
+
 export default async function RouteDetailsPage({
   params,
   searchParams,
@@ -160,7 +213,7 @@ export default async function RouteDetailsPage({
         		width={160}
         		height={48}
         		priority
-        		className="h-auto w-[140px] md:w-[170px]"
+        		className="h-auto w-35 md:w-42.5"
       			/>
 		      <div>
         		<p className="text-sm font-medium text-neutral-500">Portal de Rotas</p>
@@ -174,7 +227,11 @@ export default async function RouteDetailsPage({
       			>
         				← Voltar
       			</Link>
-		      <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
+
+	        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(
+            route.status
+            )}`}  
+          >
         		{route.status}
       		      </span>
     		</div>
@@ -204,7 +261,7 @@ export default async function RouteDetailsPage({
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="grid gap-4">
-          {route.activities.map((activity) => (
+          {route.activities.map((activity: CobliActivity, index: number) => (
             <article key={activity.id} className="rounded-2xl bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -213,11 +270,18 @@ export default async function RouteDetailsPage({
                       {activity.position}
                     </span>
 
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
-                      {activity.type}
-                    </span>
+                    <h3 className="flex items-center gap-2 font-medium">
+                      <span className="text-lg">{getTypeIcon(activity.type)}</span>
+                      <span>
+                        #{index + 1} - {activity.type}
+                      </span>
+                    </h3>
 
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadgeClass(
+                        activity.status
+                      )}`}
+                    >
                       {activity.status}
                     </span>
                   </div>
@@ -232,8 +296,7 @@ export default async function RouteDetailsPage({
                   </h2>
 
                   <p className="mt-2 text-sm text-neutral-600">
-                    <span className="font-semibold text-neutral-700">Endereço:</span>{" "}
-                    {formatAddress(activity.destination)}
+                    <span className="font-semibold text-neutral-700">Endereço:</span> {buildAddress(activity)}
                   </p>
 
                   {activity.phone_number && (

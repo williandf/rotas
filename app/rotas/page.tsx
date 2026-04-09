@@ -3,17 +3,38 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import type { RouteItem } from "../types/route"
+import type { NormalizedRoute } from "../types/route"
 import {
   getStartAndEndOfDayInMillis,
   getTodayDateInputValue,
 } from "../lib/utils"
 
 export default function RoutesPage() {
-  const [routes, setRoutes] = useState<RouteItem[]>([])
+  const [routes, setRoutes] = useState<NormalizedRoute[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState(getTodayDateInputValue())
   const [error, setError] = useState("")
+
+  function getStatusBadgeClass(status: string) {
+  switch (status) {
+    case "Concluído":
+    case "Executada":
+    case "Visitado":
+      return "bg-green-100 text-green-700 border border-green-200"
+    case "Pendente":
+    case "Planejada":
+      return "bg-yellow-100 text-yellow-800 border border-yellow-200"
+    case "No local":
+    case "Em andamento":
+      return "bg-blue-100 text-blue-700 border border-blue-200"
+    case "Cancelada":
+    case "Cancelado":
+    case "Falhou":
+      return "bg-red-100 text-red-700 border border-red-200"
+    default:
+      return "bg-neutral-100 text-neutral-700 border border-neutral-200"
+  }
+}
 
   async function loadRoutes(dateValue: string) {
     setLoading(true)
@@ -60,7 +81,7 @@ export default function RoutesPage() {
               width={160}
               height={48}
               priority
-              className="h-auto w-[140px] md:w-[170px]"
+              className="h-auto w-35 md:w-42.5"
             />
             <div>
               <p className="text-sm font-medium text-neutral-500">Portal de Rotas</p>
@@ -161,8 +182,12 @@ export default function RoutesPage() {
                       <span className="rounded-full bg-neutral-100 px-3 py-1">
                         Horário: {route.startTimeLabel} - {route.endTimeLabel}
                       </span>
-                      <span className="rounded-full bg-neutral-100 px-3 py-1">
-                        Status: {route.status}
+                      <span 
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadgeClass(
+                        route.status
+                        )}`}
+                      >
+                        {route.status}
                       </span>
                     </div>
                   </div>

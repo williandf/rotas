@@ -7,7 +7,7 @@ import { CobliActivity } from "@/app/types/route"
 
 type RouteActivity = {
   id: string
-  type: "START" | "STOP" | "END"
+  type: string
   status: string
   visit_status: string | null
   completion_status: string | null
@@ -253,7 +253,11 @@ export default async function RouteDetailsPage({
               Fim: {route.endTimeLabel}
             </span>
             <span className="rounded-full bg-white/15 px-4 py-2">
-              Paradas: {route.activities.filter((item) => item.type === "STOP").length}
+              Paradas: {
+                route.activities.filter(
+                (item) => !["START", "END", "Início", "Fim"].includes(item.type)
+                ).length
+              }
             </span>
           </div>
         </div>
@@ -288,11 +292,11 @@ export default async function RouteDetailsPage({
 
                   <h2 className="text-lg font-bold text-neutral-800">
                     {activity.name ||
-                      (activity.type === "START"
-                        ? "Início da rota"
-                        : activity.type === "END"
-                        ? "Fim da rota"
-                        : "Parada")}
+                      (["START", "Início"].includes(activity.type)
+                      ? "Início da rota"
+                      : ["END", "Fim"].includes(activity.type)
+                      ? "Fim da rota"
+                      : "Parada")}
                   </h2>
 
                   <p className="mt-2 text-sm text-neutral-600">

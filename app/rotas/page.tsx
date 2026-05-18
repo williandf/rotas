@@ -4,23 +4,81 @@ import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import type { NormalizedRoute } from "../types/route"
-import {
-  getStartAndEndOfDayInMillis,
-  getTodayDateInputValue,
-} from "../lib/utils"
+import { getStartAndEndOfDayInMillis } from "../lib/utils"
 
 function extractDigits(value?: string | null) {
   return (value || "").replace(/\D/g, "")
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function formatDateLabel(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date)
+}
+
+function getPreviousBusinessDay(today: Date) {
+  const previous = addDays(today, -1)
+
+  if (previous.getDay() === 0) return addDays(previous, -2) // domingo -> sexta
+  if (previous.getDay() === 6) return addDays(previous, -1) // sábado -> sexta
+
+  return previous
+}
+
+function getNextBusinessDay(today: Date) {
+  const next = addDays(today, 1)
+
+  if (next.getDay() === 6) return addDays(next, 2) // sábado -> segunda
+  if (next.getDay() === 0) return addDays(next, 1) // domingo -> segunda
+
+  return next
+}
+
+function getAllowedDateOptions() {
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+
+  const yesterday = getPreviousBusinessDay(today)
+  const tomorrow = getNextBusinessDay(today)
+
+  return [
+    {
+      label: "Ontem",
+      shortLabel: formatDateLabel(yesterday),
+      value: formatDateInput(yesterday),
+    },
+    {
+      label: "Hoje",
+      shortLabel: formatDateLabel(today),
+      value: formatDateInput(today),
+    },
+    {
+      label: "Amanhã",
+      shortLabel: formatDateLabel(tomorrow),
+      value: formatDateInput(tomorrow),
+    },
+  ]
 }
 
 function extractInvoiceFromText(text?: string | null) {
   if (!text) return null
 
   const normalizedText = text.trim()
-
-  const nfPattern =
-    /\b(?:NF[\s.:/-]*)?0*(\d{5,})\b/gi
-
+  const nfPattern = /\b(?:NF[\s.:/-]*)?0*(\d{5,})\b/gi
   const matches = Array.from(normalizedText.matchAll(nfPattern))
 
   if (!matches.length) return null
@@ -50,11 +108,14 @@ function findMatchedActivities(route: NormalizedRoute, nfFilter: string) {
   )
 }
 
-function getMatchedInvoice(activity: {
-  name?: string | null
-  additional_info?: string | null
-  phone_number?: string | null
-}, nfFilter: string) {
+function getMatchedInvoice(
+  activity: {
+    name?: string | null
+    additional_info?: string | null
+    phone_number?: string | null
+  },
+  nfFilter: string
+) {
   const normalizedNf = extractDigits(nfFilter)
 
   const candidates = [
@@ -71,9 +132,14 @@ function getMatchedInvoice(activity: {
 }
 
 export default function RoutesPage() {
+  const allowedDateOptions = useMemo(() => getAllowedDateOptions(), [])
+  const todayOption =
+    allowedDateOptions.find((option) => option.label === "Hoje") ??
+    allowedDateOptions[0]
+
   const [routes, setRoutes] = useState<NormalizedRoute[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(getTodayDateInputValue())
+  const [selectedDate, setSelectedDate] = useState(todayOption.value)
   const [nfFilter, setNfFilter] = useState("")
   const [error, setError] = useState("")
 
@@ -166,25 +232,39 @@ export default function RoutesPage() {
         <div className="mx-auto max-w-6xl">
           <h2 className="text-3xl font-bold">Rotas de Entrega</h2>
           <p className="mt-2 text-sm md:text-base">
-            Consulte as rotas por data ou pelo número da NF
+            Consulte as rotas por ontem, hoje, amanhã ou pelo número da NF
           </p>
 
           <div className="mt-6 rounded-2xl bg-white p-4 text-neutral-800 shadow-md">
-            <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <div className="grid gap-4 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
               <div>
-                <label
-                  htmlFor="date"
-                  className="mb-2 block text-sm font-semibold text-neutral-700"
-                >
+                <label className="mb-2 block text-sm font-semibold text-neutral-700">
                   Data
                 </label>
-                <input
-                  id="date"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-purple-600"
-                />
+
+                <div className="grid grid-cols-3 gap-2">
+                  {allowedDateOptions.map((option) => {
+                    const isActive = selectedDate === option.value
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setSelectedDate(option.value)}
+                        className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                          isActive
+                            ? "bg-linear-to-r from-purple-700 via-red-600 to-orange-500 text-white shadow-sm"
+                            : "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div>{option.label}</div>
+                        <div className={`text-xs ${isActive ? "text-white/90" : "text-neutral-500"}`}>
+                          {option.shortLabel}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               <div>

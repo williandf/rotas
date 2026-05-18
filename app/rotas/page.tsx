@@ -33,8 +33,8 @@ function formatDateLabel(date: Date) {
 function getPreviousBusinessDay(today: Date) {
   const previous = addDays(today, -1)
 
-  if (previous.getDay() === 0) return addDays(previous, -2) // domingo -> sexta
-  if (previous.getDay() === 6) return addDays(previous, -1) // sábado -> sexta
+  if (previous.getDay() === 0) return addDays(previous, -2)
+  if (previous.getDay() === 6) return addDays(previous, -1)
 
   return previous
 }
@@ -42,8 +42,8 @@ function getPreviousBusinessDay(today: Date) {
 function getNextBusinessDay(today: Date) {
   const next = addDays(today, 1)
 
-  if (next.getDay() === 6) return addDays(next, 2) // sábado -> segunda
-  if (next.getDay() === 0) return addDays(next, 1) // domingo -> segunda
+  if (next.getDay() === 6) return addDays(next, 2)
+  if (next.getDay() === 0) return addDays(next, 1)
 
   return next
 }
@@ -93,11 +93,7 @@ function findMatchedActivities(route: NormalizedRoute, nfFilter: string) {
 
   return (
     route.activities?.filter((activity) => {
-      const rawText = [
-        activity.name,
-        activity.additional_info,
-        activity.phone_number,
-      ]
+      const rawText = [activity.name, activity.additional_info]
         .filter(Boolean)
         .join(" ")
 
@@ -112,7 +108,6 @@ function getMatchedInvoice(
   activity: {
     name?: string | null
     additional_info?: string | null
-    phone_number?: string | null
   },
   nfFilter: string
 ) {
@@ -121,7 +116,6 @@ function getMatchedInvoice(
   const candidates = [
     extractInvoiceFromText(activity.name),
     extractInvoiceFromText(activity.additional_info),
-    extractInvoiceFromText(activity.phone_number),
   ].filter(Boolean) as string[]
 
   const exactMatch = candidates.find((invoice) =>
@@ -164,19 +158,25 @@ export default function RoutesPage() {
     }
   }
 
-  async function loadRoutes(dateValue: string) {
+  async function loadRoutes(dateValue: string, currentNfFilter = nfFilter) {
     setLoading(true)
     setError("")
 
     try {
-      const { start, end } = getStartAndEndOfDayInMillis(dateValue)
+      const normalizedNf = extractDigits(currentNfFilter)
 
-      const response = await fetch(
-        `/api/routes?start_in_millis=${start}&end_in_millis=${end}`,
-        {
-          cache: "no-store",
-        }
-      )
+      let requestUrl = ""
+
+      if (normalizedNf) {
+        requestUrl = `/api/routes/search-by-nf?nf=${encodeURIComponent(normalizedNf)}`
+      } else {
+        const { start, end } = getStartAndEndOfDayInMillis(dateValue)
+        requestUrl = `/api/routes?start_in_millis=${start}&end_in_millis=${end}`
+      }
+
+      const response = await fetch(requestUrl, {
+        cache: "no-store",
+      })
 
       const data = await response.json()
 
@@ -195,7 +195,9 @@ export default function RoutesPage() {
   }
 
   useEffect(() => {
-    loadRoutes(selectedDate)
+    if (!extractDigits(nfFilter)) {
+      loadRoutes(selectedDate, "")
+    }
   }, [selectedDate])
 
   const filteredRoutes = useMemo(() => {
@@ -232,7 +234,7 @@ export default function RoutesPage() {
         <div className="mx-auto max-w-6xl">
           <h2 className="text-3xl font-bold">Rotas de Entrega</h2>
           <p className="mt-2 text-sm md:text-base">
-            Consulte as rotas por ontem, hoje, amanhã ou pelo número da NF
+            Consulte as rotas por ontem, hoje, amanhã ou pesquise uma NF sem limitar pela data
           </p>
 
           <div className="mt-6 rounded-2xl bg-white p-4 text-neutral-800 shadow-md">
@@ -258,7 +260,11 @@ export default function RoutesPage() {
                         }`}
                       >
                         <div>{option.label}</div>
-                        <div className={`text-xs ${isActive ? "text-white/90" : "text-neutral-500"}`}>
+                        <div
+                          className={`text-xs ${
+                            isActive ? "text-white/90" : "text-neutral-500"
+                          }`}
+                        >
                           {option.shortLabel}
                         </div>
                       </button>
@@ -280,14 +286,14 @@ export default function RoutesPage() {
                   inputMode="numeric"
                   value={nfFilter}
                   onChange={(e) => setNfFilter(e.target.value)}
-                  placeholder="Ex: 282540"
+                  placeholder="Ex: 280112"
                   className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-purple-600"
                 />
               </div>
 
               <button
                 type="button"
-                onClick={() => loadRoutes(selectedDate)}
+                onClick={() => loadRoutes(selectedDate, nfFilter)}
                 className="rounded-xl bg-linear-to-r from-purple-700 via-red-600 to-orange-500 px-6 py-3 font-semibold text-white shadow-sm transition hover:opacity-95"
               >
                 Pesquisar rota
@@ -300,6 +306,11 @@ export default function RoutesPage() {
               como (Trânsito, atrasos em clientes, agendamentos) então em caso da
               necessidade de uma previsão mais assertiva, solicito que entre em
               contato com a logística.
+              {extractDigits(nfFilter) && (
+                <span className="mt-2 block font-medium">
+                  Busca por NF ativa: a pesquisa não usa a data selecionada.
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -62,9 +62,9 @@ export type CobliActivity = {
   visit_status: string | null
   completion_status: string | null
   position: number
-  name: string | null
-  phone_number: string | null
-  additional_info: string | null
+  name?: string | null
+  phone_number?: string | null
+  additional_info?: string | null
   time_windows:
     | {
         earliest: number
@@ -94,6 +94,7 @@ export type NormalizedRoute = {
   startTimeLabel: string
   endTimeLabel: string
   driverName: string
+  routeDate?: string
   activities: CobliActivity[]
   points: { latitude: number; longitude: number }[]
 }

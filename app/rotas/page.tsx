@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import type { NormalizedRoute } from "../types/route"
 import { getStartAndEndOfDayInMillis } from "../lib/utils"
 
@@ -126,6 +127,9 @@ function getMatchedInvoice(
 }
 
 export default function RoutesPage() {
+  const searchParams = useSearchParams()
+  const initializedFromUrlRef = useRef(false)
+
   const allowedDateOptions = useMemo(() => getAllowedDateOptions(), [])
   const todayOption =
     allowedDateOptions.find((option) => option.label === "Hoje") ??
@@ -195,6 +199,21 @@ export default function RoutesPage() {
   }
 
   useEffect(() => {
+    if (initializedFromUrlRef.current) return
+
+    const dateFromUrl = searchParams.get("date")
+
+    if (
+      dateFromUrl &&
+      allowedDateOptions.some((option) => option.value === dateFromUrl)
+    ) {
+      setSelectedDate(dateFromUrl)
+    }
+
+    initializedFromUrlRef.current = true
+  }, [searchParams, allowedDateOptions])
+
+  useEffect(() => {
     if (!extractDigits(nfFilter)) {
       loadRoutes(selectedDate, "")
     }
@@ -238,7 +257,13 @@ export default function RoutesPage() {
           </p>
 
           <div className="mt-6 rounded-2xl bg-white p-4 text-neutral-800 shadow-md">
-            <div className="grid gap-4 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                loadRoutes(selectedDate, nfFilter)
+              }}
+              className="grid gap-4 md:grid-cols-[1.4fr_1fr_auto] md:items-end"
+            >
               <div>
                 <label className="mb-2 block text-sm font-semibold text-neutral-700">
                   Data
@@ -292,13 +317,12 @@ export default function RoutesPage() {
               </div>
 
               <button
-                type="button"
-                onClick={() => loadRoutes(selectedDate, nfFilter)}
+                type="submit"
                 className="rounded-xl bg-linear-to-r from-purple-700 via-red-600 to-orange-500 px-6 py-3 font-semibold text-white shadow-sm transition hover:opacity-95"
               >
                 Pesquisar rota
               </button>
-            </div>
+            </form>
 
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <span className="font-semibold">Obs:</span> Lembrando que esse horário
@@ -435,7 +459,7 @@ export default function RoutesPage() {
                     </div>
 
                     <Link
-                      href={`/rotas/${route.id}?date=${selectedDate}`}
+                      href={`/rotas/${route.id}?date=${route.routeDate || selectedDate}&originDate=${selectedDate}`}
                       className="inline-flex items-center justify-center rounded-xl bg-linear-to-r from-purple-700 via-red-600 to-orange-500 px-5 py-3 text-sm font-bold text-white"
                     >
                       Ver rota

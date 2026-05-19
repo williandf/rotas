@@ -10,6 +10,17 @@ function formatTime(value?: number | null) {
   }).format(new Date(value))
 }
 
+function formatRouteDate(value?: number | null) {
+  if (!value) return ""
+
+  const date = new Date(value)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
 const activityTypeMap: Record<string, string> = {
   START: "Início",
   STOP: "Parada",
@@ -74,6 +85,7 @@ export function normalizeCobliRoutes(
       startTimeLabel: formatTime(firstActivity?.start_time ?? route.start_time),
       endTimeLabel: formatTime(lastActivity?.end_time ?? route.end_time),
       driverName: firstDriver,
+      routeDate: formatRouteDate(route.start_time),
       activities: activities.map((activity) => ({
         id: activity.id ?? "",
         type: translate(activity.type, activityTypeMap, "Não informado"),

@@ -191,10 +191,10 @@ export default async function RouteDetailsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ date?: string }>
+  searchParams: Promise<{ date?: string; originDate?: string }>
 }) {
   const { id } = await params
-  const { date } = await searchParams
+  const { date, originDate } = await searchParams
 
   const route = await getRouteById(id, date)
 
@@ -222,7 +222,7 @@ export default async function RouteDetailsPage({
     		</div>
 		    <div className="flex items-center gap-4">
       			<Link
-        			href={date ? `/rotas?date=${date}` : "/rotas"}
+        			href={originDate ? `/rotas?date=${originDate}` : date ? `/rotas?date=${date}` : "/rotas"}
         			className="text-sm font-semibold text-neutral-700"
       			>
         				← Voltar

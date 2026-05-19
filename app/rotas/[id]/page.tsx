@@ -61,30 +61,6 @@ function formatTime(value?: number | null) {
   }).format(new Date(value))
 }
 
-function formatAddress(
-  destination?: {
-    street_address?: string
-    street_number?: string
-    neighborhood?: string | null
-    city?: string
-    state?: string
-    postal_code?: string
-  } | null
-) {
-  if (!destination) return "-"
-
-  return [
-    [destination.street_address, destination.street_number]
-      .filter(Boolean)
-      .join(", "),
-    destination.neighborhood,
-    [destination.city, destination.state].filter(Boolean).join(" - "),
-    destination.postal_code,
-  ]
-    .filter(Boolean)
-    .join(" • ")
-}
-
 function formatTimeWindows(
   windows?: { earliest: number; latest: number }[] | null
 ) {
@@ -148,6 +124,7 @@ function buildAddress(activity: CobliActivity) {
     .filter(Boolean)
     .join(", ")
 }
+
 function getStatusBadgeClass(status: string) {
   switch (status) {
     case "Concluído":
@@ -174,16 +151,45 @@ function getStatusBadgeClass(status: string) {
 }
 
 function getTypeIcon(type: string) {
-  switch (type) {
-    case "Início":
-      return "🚚"
-    case "Parada":
-      return "📍"
-    case "Fim":
-      return "🏁"
-    default:
-      return "•"
+  if (["Início", "START"].includes(type)) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 21s6-5.33 6-11a6 6 0 1 0-12 0c0 5.67 6 11 6 11Z" />
+        <circle cx="12" cy="10" r="2.5" />
+      </svg>
+    )
   }
+
+  if (["Fim", "END"].includes(type)) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M5 21V4" />
+        <path d="M5 4h9l-1.5 3L14 10H5" />
+      </svg>
+    )
+  }
+
+  if (["Parada", "STOP"].includes(type)) {
+    return "📍"
+  }
+
+  return "•"
 }
 
 export default async function RouteDetailsPage({
@@ -205,37 +211,45 @@ export default async function RouteDetailsPage({
   return (
     <div className="min-h-screen bg-neutral-100">
       <header className="sticky top-0 z-50 bg-white shadow-sm">
-  	<div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-    		<div className="flex items-center gap-4">
-      			<Image
-        		src="/logo.svg"
-        		alt="Logo"
-        		width={160}
-        		height={48}
-        		priority
-        		className="h-auto w-35 md:w-42.5"
-      			/>
-		      <div>
-        		<p className="text-sm font-medium text-neutral-500">Portal de Rotas</p>
-        		<h1 className="text-lg font-bold text-neutral-800">Entregas</h1>
-      		      </div>
-    		</div>
-		    <div className="flex items-center gap-4">
-      			<Link
-        			href={originDate ? `/rotas?date=${originDate}` : date ? `/rotas?date=${date}` : "/rotas"}
-        			className="text-sm font-semibold text-neutral-700"
-      			>
-        				← Voltar
-      			</Link>
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-4">
+            <Image
+              src="/logo.svg"
+              alt="Logo"
+              width={160}
+              height={48}
+              priority
+              className="h-auto w-35 md:w-42.5"
+            />
+            <div>
+              <p className="text-sm font-medium text-neutral-500">Portal de Rotas</p>
+              <h1 className="text-lg font-bold text-neutral-800">Entregas</h1>
+            </div>
+          </div>
 
-	        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(
-            route.status
-            )}`}  
-          >
-        		{route.status}
-      		      </span>
-    		</div>
-  	</div>
+          <div className="flex items-center gap-4">
+            <Link
+              href={
+                originDate
+                  ? `/rotas?date=${originDate}`
+                  : date
+                  ? `/rotas?date=${date}`
+                  : "/rotas"
+              }
+              className="text-sm font-semibold text-neutral-700"
+            >
+              ← Voltar
+            </Link>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(
+                route.status
+              )}`}
+            >
+              {route.status}
+            </span>
+          </div>
+        </div>
       </header>
 
       <section className="bg-linear-to-r from-purple-700 via-red-600 to-orange-500 px-4 py-10 text-white">
@@ -255,7 +269,7 @@ export default async function RouteDetailsPage({
             <span className="rounded-full bg-white/15 px-4 py-2">
               Paradas: {
                 route.activities.filter(
-                (item) => !["START", "END", "Início", "Fim"].includes(item.type)
+                  (item) => !["START", "END", "Início", "Fim"].includes(item.type)
                 ).length
               }
             </span>
@@ -265,96 +279,115 @@ export default async function RouteDetailsPage({
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="grid gap-4">
-          {route.activities.map((activity: CobliActivity, index: number) => (
-            <article key={activity.id} className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-purple-700 px-2 text-sm font-bold text-white">
-                      {activity.position}
-                    </span>
+          {route.activities.map((activity: CobliActivity, index: number) => {
+            const isStart = ["START", "Início"].includes(activity.type)
+            const isEnd = ["END", "Fim"].includes(activity.type)
+            const isStop = !isStart && !isEnd
 
-                    <h3 className="flex items-center gap-2 font-medium">
-                      <span className="text-lg">{getTypeIcon(activity.type)}</span>
-                      <span>
-                        #{index + 1} - {activity.type}
+            const title = isStart
+              ? "Início da rota"
+              : isEnd
+              ? "Fim da rota"
+              : activity.name || "Parada"
+
+            const headerLabel = isStart
+              ? `#${index + 1} - Início`
+              : isEnd
+              ? `#${index + 1} - Fim`
+              : `#${index + 1} - Parada`
+
+            return (
+              <article key={activity.id} className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-purple-700 px-2 text-sm font-bold text-white">
+                        {isStart || isEnd ? getTypeIcon(activity.type) : activity.position}
                       </span>
-                    </h3>
 
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadgeClass(
-                        activity.status
-                      )}`}
-                    >
-                      {activity.status}
-                    </span>
+                      <h3 className="flex items-center gap-2 font-medium">
+                        {isStop && <span className="text-lg">{getTypeIcon(activity.type)}</span>}
+                        <span>{headerLabel}</span>
+                      </h3>
+
+                      {isStop && (
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadgeClass(
+                            activity.status
+                          )}`}
+                        >
+                          {activity.status}
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-lg font-bold text-neutral-800">
+                      {title}
+                    </h2>
+
+                    <p className="mt-2 text-sm text-neutral-600">
+                      <span className="font-semibold text-neutral-700">Endereço:</span>{" "}
+                      {buildAddress(activity)}
+                    </p>
+
+                    {isStop && activity.phone_number && (
+                      <p className="mt-1 text-sm text-neutral-600">
+                        <span className="font-semibold text-neutral-700">Telefone:</span>{" "}
+                        {activity.phone_number}
+                      </p>
+                    )}
+
+                    {isStop && activity.additional_info && (
+                      <p className="mt-1 text-sm text-neutral-600">
+                        <span className="font-semibold text-neutral-700">Observações:</span>{" "}
+                        {activity.additional_info}
+                      </p>
+                    )}
+
+                    {isStop && activity.time_windows && (
+                      <p className="mt-1 text-sm text-neutral-600">
+                        <span className="font-semibold text-neutral-700">
+                          Janela de atendimento:
+                        </span>{" "}
+                        {formatTimeWindows(activity.time_windows)}
+                      </p>
+                    )}
+
+                    {isStop && activity.driver_name && (
+                      <p className="mt-1 text-sm text-neutral-600">
+                        <span className="font-semibold text-neutral-700">Motorista:</span>{" "}
+                        {activity.driver_name}
+                      </p>
+                    )}
                   </div>
 
-                  <h2 className="text-lg font-bold text-neutral-800">
-                    {activity.name ||
-                      (["START", "Início"].includes(activity.type)
-                      ? "Início da rota"
-                      : ["END", "Fim"].includes(activity.type)
-                      ? "Fim da rota"
-                      : "Parada")}
-                  </h2>
-
-                  <p className="mt-2 text-sm text-neutral-600">
-                    <span className="font-semibold text-neutral-700">Endereço:</span> {buildAddress(activity)}
-                  </p>
-
-                  {activity.phone_number && (
-                    <p className="mt-1 text-sm text-neutral-600">
-                      <span className="font-semibold text-neutral-700">Telefone:</span>{" "}
-                      {activity.phone_number}
+                  <div className="rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700 md:min-w-72">
+                    <p>
+                      <span className="font-semibold">Previsto início:</span>{" "}
+                      {formatDateTime(activity.start_time)}
                     </p>
-                  )}
 
-                  {activity.additional_info && (
-                    <p className="mt-1 text-sm text-neutral-600">
-                      <span className="font-semibold text-neutral-700">Observações:</span>{" "}
-                      {activity.additional_info}
-                    </p>
-                  )}
-
-                  {activity.time_windows && (
-                    <p className="mt-1 text-sm text-neutral-600">
-                      <span className="font-semibold text-neutral-700">
-                        Janela de atendimento:
-                      </span>{" "}
-                      {formatTimeWindows(activity.time_windows)}
-                    </p>
-                  )}
-
-                  {activity.driver_name && (
-                    <p className="mt-1 text-sm text-neutral-600">
-                      <span className="font-semibold text-neutral-700">Motorista:</span>{" "}
-                      {activity.driver_name}
-                    </p>
-                  )}
+                    {isStop && (
+                      <>
+                        <p className="mt-1">
+                          <span className="font-semibold">Previsto fim:</span>{" "}
+                          {formatDateTime(activity.end_time)}
+                        </p>
+                        <p className="mt-1">
+                          <span className="font-semibold">Chegada:</span>{" "}
+                          {formatDateTime(activity.arrival_time)}
+                        </p>
+                        <p className="mt-1">
+                          <span className="font-semibold">Conclusão:</span>{" "}
+                          {formatDateTime(activity.executed_end_time)}
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
-
-                <div className="rounded-xl bg-neutral-50 p-4 text-sm text-neutral-700 md:min-w-72">
-                  <p>
-                    <span className="font-semibold">Previsto início:</span>{" "}
-                    {formatDateTime(activity.start_time)}
-                  </p>
-                  <p className="mt-1">
-                    <span className="font-semibold">Previsto fim:</span>{" "}
-                    {formatDateTime(activity.end_time)}
-                  </p>
-                  <p className="mt-1">
-                    <span className="font-semibold">Chegada:</span>{" "}
-                    {formatDateTime(activity.arrival_time)}
-                  </p>
-                  <p className="mt-1">
-                    <span className="font-semibold">Conclusão:</span>{" "}
-                    {formatDateTime(activity.executed_end_time)}
-                  </p>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            )
+          })}
         </div>
       </main>
     </div>

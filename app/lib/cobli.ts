@@ -64,6 +64,76 @@ function translate(
   return map[value] ?? value
 }
 
+function getNormalizedActivityStatus(activity: {
+  status?: string | null
+  visit_status?: string | null
+  completion_status?: string | null
+  arrival_time?: number | null
+  executed_end_time?: number | null
+}) {
+  if (activity.completion_status === "COMPLETED") {
+    return "Concluído"
+  }
+
+  if (activity.executed_end_time) {
+    return "Concluído"
+  }
+
+  if (activity.visit_status === "VISITED") {
+    return "Concluído"
+  }
+
+  if (activity.status === "ON_SITE" || activity.visit_status === "ON_SITE") {
+    return "No local"
+  }
+
+  if (activity.arrival_time && !activity.executed_end_time) {
+    return "No local"
+  }
+
+  return "Pendente"
+}
+
+function getNormalizedRouteStatus(route: {
+  status?: string | null
+  activities?: Array<{
+    type?: string | null
+    status?: string | null
+    visit_status?: string | null
+    completion_status?: string | null
+    executed_end_time?: number | null
+  }>
+}) {
+  if (route.status === "EXECUTED") {
+    return "Executada"
+  }
+
+  const stops = (route.activities ?? []).filter((activity) => activity.type === "STOP")
+
+  if (
+    stops.length > 0 &&
+    stops.every(
+      (activity) =>
+        activity.completion_status === "COMPLETED" ||
+        !!activity.executed_end_time ||
+        activity.visit_status === "VISITED"
+    )
+  ) {
+    return "Executada"
+  }
+
+  if (
+    stops.some(
+      (activity) =>
+        activity.status === "ON_SITE" || activity.visit_status === "ON_SITE"
+    )
+  ) {
+    return "Em andamento"
+  }
+
+  return translate(route.status, statusMap, "Sem status")
+}
+
 export function normalizeCobliRoutes(
   apiResponse: CobliApiResponse
 ): NormalizedRoute[] {
@@ -81,7 +151,7 @@ export function normalizeCobliRoutes(
     return {
       id: route.id ?? "",
       name: route.name ?? "Rota sem nome",
-      status: translate(route.status, statusMap, "Sem status"),
+      status: getNormalizedRouteStatus(route),
       startTimeLabel: formatTime(firstActivity?.start_time ?? route.start_time),
       endTimeLabel: formatTime(lastActivity?.end_time ?? route.end_time),
       driverName: firstDriver,
@@ -89,7 +159,7 @@ export function normalizeCobliRoutes(
       activities: activities.map((activity) => ({
         id: activity.id ?? "",
         type: translate(activity.type, activityTypeMap, "Não informado"),
-        status: translate(activity.status, statusMap, "Sem status"),
+        status: getNormalizedActivityStatus(activity),
         visit_status: translate(activity.visit_status, visitStatusMap, ""),
         completion_status: translate(
           activity.completion_status,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -126,7 +126,7 @@ function getMatchedInvoice(
   return exactMatch || normalizedNf
 }
 
-export default function RoutesPage() {
+function RoutesPageContent() {
   const searchParams = useSearchParams()
   const initializedFromUrlRef = useRef(false)
 
@@ -472,5 +472,13 @@ export default function RoutesPage() {
         )}
       </main>
     </div>
+  )
+}
+
+export default function RoutesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-neutral-100" />}>
+      <RoutesPageContent />
+    </Suspense>
   )
 }
